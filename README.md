@@ -6,14 +6,15 @@ Minimal template for a repo-cloning coding workspace that runs Codex via the Cod
 
 **The SDK + MCP server path does not currently support the latest Codex models (including `codex-5.3-pro`), so this template uses Codex CLI instead.**
 
-- Use `.codex/config.toml` and per-agent config files as the source of truth.
+- Use `/workspace/.codex/config.yaml` as the source of truth for Codex runtime settings.
 
 ## What this template does
 
 - Clones the target repository into `/workspace`.
 - Optionally boots GitHub CLI auth when a token is provided.
 - Supports optional `git_author_email` task param for commit author/committer email.
-- Ensures Codex project config files exist in `/workspace/.codex/`.
+- Mounts a vanilla Codex config file at `/workspace/.codex/config.yaml`.
+- Reads model/sandbox/approval settings from that mounted config in `on_event`.
 - Runs `codex exec` and `codex exec resume` (JSON mode) to preserve thread state across task events.
 
 ## Runtime
@@ -33,7 +34,7 @@ Minimal template for a repo-cloning coding workspace that runs Codex via the Cod
 - Config sample: https://developers.openai.com/codex/config-sample
 - Agents SDK guide (background/reference): https://developers.openai.com/codex/guides/agents-sdk/
 
-## Default Config Files Created (If Missing)
+## Mounted Codex Config
 
-- `/workspace/.codex/config.toml`
-- `/workspace/.codex/agents/coding.toml`
+- Source in image: `/app/codex/config.yaml` (from repo path `codex/config.yaml`)
+- Mounted target: `/workspace/.codex/config.yaml` (configured in `config.yaml` sandbox mounts)

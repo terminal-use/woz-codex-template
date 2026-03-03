@@ -25,9 +25,8 @@ WORKSPACE_DIR = "/workspace"
 WORKSPACE_PATH = Path(WORKSPACE_DIR)
 WORKSPACE_GIT_PATH = WORKSPACE_PATH / ".git"
 CODEX_PROJECT_DIR = WORKSPACE_PATH / ".codex"
-CODEX_PROJECT_CONFIG_PATH = CODEX_PROJECT_DIR / "config.toml"
-CODEX_AGENT_CONFIG_DIR = CODEX_PROJECT_DIR / "agents"
-CODEX_AGENT_CONFIG_PATH = CODEX_AGENT_CONFIG_DIR / "coding.toml"
+CODEX_WORKSPACE_CONFIG_YAML_PATH = CODEX_PROJECT_DIR / "config.yaml"
+CODEX_BAKED_CONFIG_YAML_PATH = Path("/app/codex/config.yaml")
 
 
 def _env_log_level(name: str, default: int) -> int:
@@ -148,53 +147,45 @@ async def wait_for_workspace_ready(
     return workspace_ready()
 
 
-def ensure_codex_cli_project_config(*, model: str) -> list[str]:
-    """Ensure project-scoped Codex CLI config files exist.
+def load_codex_runtime_config(*, default_model: str) -> dict[str, str]:
+    """Load Codex runtime settings from mounted vanilla YAML config."""
+    config: dict[str, str] = {
+        "model": default_model,
+        "approval_policy": "never",
+        "sandbox_mode": "danger-full-access",
+    }
 
-    Creates a default `.codex/config.toml` and `.codex/agents/coding.toml`
-    only when missing so repository-provided configs remain untouched.
-    """
-    created: list[str] = []
-    CODEX_AGENT_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    for path in (CODEX_WORKSPACE_CONFIG_YAML_PATH, CODEX_BAKED_CONFIG_YAML_PATH):
+        parsed = _parse_simple_yaml(path)
+        if not parsed:
+            continue
+        for key in ("model", "approval_policy", "sandbox_mode"):
+            value = parsed.get(key)
+            if value:
+                config[key] = value
+        break
 
-    if not CODEX_AGENT_CONFIG_PATH.exists():
-        CODEX_AGENT_CONFIG_PATH.write_text(
-            _default_agent_config_toml(model=model),
-            encoding="utf-8",
-        )
-        created.append(str(CODEX_AGENT_CONFIG_PATH))
-
-    if not CODEX_PROJECT_CONFIG_PATH.exists():
-        CODEX_PROJECT_CONFIG_PATH.write_text(
-            _default_project_config_toml(model=model),
-            encoding="utf-8",
-        )
-        created.append(str(CODEX_PROJECT_CONFIG_PATH))
-
-    return created
+    return config
 
 
-def _default_project_config_toml(*, model: str) -> str:
-    """Default project-level Codex config used by this harness."""
-    return f"""model = "{model}"
-approval_policy = "never"
-sandbox_mode = "danger-full-access"
+def _parse_simple_yaml(path: Path) -> dict[str, str]:
+    """Parse a flat `key: value` YAML file for simple runtime settings."""
+    if not path.exists():
+        return {}
 
-[agents.coding]
-description = "Primary coding agent for workspace tasks"
-model = "{model}"
-config_file = "{CODEX_AGENT_CONFIG_PATH}"
-
-# Optional MCP server example:
-# [mcp_servers.docs]
-# command = "npx"
-# args = ["-y", "@modelcontextprotocol/server-filesystem", "/workspace"]
-"""
-
-
-def _default_agent_config_toml(*, model: str) -> str:
-    """Default per-agent config for the `coding` agent role."""
-    return f"""model = "{model}"
-approval_policy = "never"
-sandbox_mode = "danger-full-access"
-"""
+    values: dict[str, str] = {}
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or ":" not in line:
+            continue
+        key, value = line.split(":", 1)
+        key = key.strip()
+        value = value.strip()
+        if not key or not value:
+            continue
+        if (value.startswith('"') and value.endswith('"')) or (
+            value.startswith("'") and value.endswith("'")
+        ):
+            value = value[1:-1].strip()
+        values[key] = value
+    return values
