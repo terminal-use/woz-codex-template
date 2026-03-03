@@ -24,8 +24,6 @@ NOISY_RUNTIME_LOGGERS = (
 WORKSPACE_DIR = "/workspace"
 WORKSPACE_PATH = Path(WORKSPACE_DIR)
 WORKSPACE_GIT_PATH = WORKSPACE_PATH / ".git"
-CODEX_PROJECT_DIR = WORKSPACE_PATH / ".codex"
-CODEX_WORKSPACE_CONFIG_YAML_PATH = CODEX_PROJECT_DIR / "config.yaml"
 CODEX_BAKED_CONFIG_YAML_PATH = Path("/app/codex/config.yaml")
 
 
@@ -155,15 +153,12 @@ def load_codex_runtime_config(*, default_model: str) -> dict[str, str]:
         "sandbox_mode": "danger-full-access",
     }
 
-    for path in (CODEX_WORKSPACE_CONFIG_YAML_PATH, CODEX_BAKED_CONFIG_YAML_PATH):
-        parsed = _parse_simple_yaml(path)
-        if not parsed:
-            continue
+    parsed = _parse_simple_yaml(CODEX_BAKED_CONFIG_YAML_PATH)
+    if parsed:
         for key in ("model", "approval_policy", "sandbox_mode"):
             value = parsed.get(key)
             if value:
                 config[key] = value
-        break
 
     return config
 

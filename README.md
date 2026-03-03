@@ -6,7 +6,7 @@ Minimal template for a repo-cloning coding workspace that runs Codex via the Cod
 
 **The SDK + MCP server path does not currently support the latest Codex models (including `codex-5.3-pro`), so this template uses Codex CLI instead.**
 
-- Use `/workspace/.codex/config.yaml` as the source of truth for Codex runtime settings.
+- Use `codex/config.yaml` (baked to `/app/codex/config.yaml`) as the source of truth for Codex runtime settings.
 
 ## What this template does
 
@@ -14,7 +14,7 @@ Minimal template for a repo-cloning coding workspace that runs Codex via the Cod
 - Optionally boots GitHub CLI auth when a token is provided.
 - Supports optional `git_author_email` task param for commit author/committer email.
 - Mounts a vanilla Codex config file at `/workspace/.codex/config.yaml`.
-- Reads model/sandbox/approval settings from that mounted config in `on_event`.
+- Reads model/sandbox/approval settings from `/app/codex/config.yaml` in `on_event`.
 - Runs `codex exec` and `codex exec resume` (JSON mode) to preserve thread state across task events.
 
 ## Runtime
