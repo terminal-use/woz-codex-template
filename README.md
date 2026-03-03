@@ -20,7 +20,7 @@ Minimal template for a repo-cloning coding workspace that runs Codex via the Cod
 
 - `sdk_type: codex_agent_sdk`
 - Codex CLI (`@openai/codex`) preinstalled
-- `git`, `gh`, `bubblewrap`, `node`, and `npm` available in the container
+- `git`, `gh`, `node`, and `npm` available in the container
 
 ## OpenAI Docs
 
