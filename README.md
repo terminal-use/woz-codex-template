@@ -13,6 +13,7 @@ Minimal template for a repo-cloning coding workspace that runs Codex via the Cod
 
 - Clones the target repository into `/workspace`.
 - Optionally boots GitHub CLI auth when a token is provided.
+- Supports optional `git_author_email` task param for commit author/committer email.
 - Ensures Codex project config files exist in `/workspace/.codex/`.
 - Runs `codex exec` and `codex exec resume` (JSON mode) to preserve thread state across task events.
 

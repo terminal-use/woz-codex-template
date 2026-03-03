@@ -142,6 +142,7 @@ async def handle_create(ctx: TaskContext, params: dict[str, Any]):
     repo_url = params.get("repo_url")
     github_token = params.get("github_token")
     github_login = params.get("github_login")
+    git_author_email = params.get("git_author_email")
     logger.info(
         "task_create task_id=%s repo_url=%s has_token=%s",
         ctx.task.id,
@@ -179,7 +180,10 @@ async def handle_create(ctx: TaskContext, params: dict[str, Any]):
         if used_embedded_token:
             run_cmd(["git", "remote", "set-url", "origin", str(repo_url)], cwd=WORKSPACE_DIR)
 
-        configure_git_identity(github_login if isinstance(github_login, str) else None)
+        configure_git_identity(
+            github_login if isinstance(github_login, str) else None,
+            git_author_email if isinstance(git_author_email, str) else None,
+        )
         if github_token:
             os.environ["GH_TOKEN"] = str(github_token)
             os.environ["GITHUB_TOKEN"] = str(github_token)
@@ -214,10 +218,15 @@ async def handle_event(ctx: TaskContext, event: Event):
         workspace_ready_flag = bool(state.get("workspace_ready")) if isinstance(state, dict) else False
 
         task_github_token = task_param_str(ctx, "github_token")
+        task_github_login = task_param_str(ctx, "github_login")
+        task_git_author_email = task_param_str(ctx, "git_author_email")
         env = git_env()
         if task_github_token:
             env["GH_TOKEN"] = task_github_token
             env["GITHUB_TOKEN"] = task_github_token
+        if task_git_author_email:
+            env["GIT_AUTHOR_EMAIL"] = task_git_author_email
+            env["GIT_COMMITTER_EMAIL"] = task_git_author_email
 
         if not workspace_ready_flag or not workspace_ready():
             ready = await wait_for_workspace_ready()
@@ -228,6 +237,7 @@ async def handle_event(ctx: TaskContext, event: Event):
 
         model = os.getenv("CODEX_MODEL", "").strip() or DEFAULT_CODEX_MODEL
         ensure_codex_cli_project_config(model=model)
+        configure_git_identity(task_github_login, task_git_author_email)
 
         result = _run_codex_cli(
             prompt=user_message,

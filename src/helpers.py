@@ -102,14 +102,18 @@ def redact_secret(text: str, secret: str | None) -> str:
     return text.replace(secret, "***")
 
 
-def configure_git_identity(github_login: str | None) -> None:
-    """Set git user.name and user.email."""
+def configure_git_identity(
+    github_login: str | None,
+    git_author_email: str | None = None,
+) -> None:
+    """Set git user.name and user.email for repository commits."""
     name = github_login or "TerminalUse Agent"
-    email = (
+    default_email = (
         f"{github_login}@users.noreply.github.com"
         if github_login
         else "terminaluse-agent@users.noreply.github.com"
     )
+    email = git_author_email.strip() if git_author_email else default_email
     run_cmd(["git", "config", "user.name", name], cwd=WORKSPACE_DIR)
     run_cmd(["git", "config", "user.email", email], cwd=WORKSPACE_DIR)
 
