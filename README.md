@@ -1,30 +1,40 @@
 # Coding Workspace Codex Harness Template
 
-This template provisions a repo-cloning coding workspace harness that uses Codex as the runtime assistant.
+Minimal template for a repo-cloning coding workspace that runs Codex via the Codex CLI.
 
-## What it does
+## Note
 
-- Clones `repo_url` into `/workspace` on task create.
-- Bootstraps GitHub auth (`gh`) when `github_token` is provided.
-- Reuses Codex thread state across events for iterative coding workflows.
-- Supports practical PR/CI loops inside the cloned repo.
+**The SDK + MCP server path does not currently support the latest Codex models (including `codex-5.3-pro`), so this template uses Codex CLI instead.**
 
-## Runtime stack
+- Use `codex/config.yaml` (baked to `/app/codex/config.yaml`) as the source of truth for Codex runtime settings.
+
+## What this template does
+
+- Clones the target repository into `/workspace`.
+- Optionally boots GitHub CLI auth when a token is provided.
+- Supports optional `git_author_email` task param for commit author/committer email.
+- Mounts a vanilla Codex config file at `/workspace/.codex/config.yaml`.
+- Reads model/sandbox/approval settings from `/app/codex/config.yaml` in `on_event`.
+- Runs `codex exec` and `codex exec resume` (JSON mode) to preserve thread state across task events.
+
+## Runtime
 
 - `sdk_type: codex_agent_sdk`
-- Python runtime with `openai-agents`
-- Codex CLI (`@openai/codex`) installed in image
-- `git`, `gh`, `bubblewrap`, `node`, `npm` available in container
+- Codex CLI (`@openai/codex`) preinstalled
+- `git`, `gh`, `node`, and `npm` available in the container
 
-## Expected task params
+## OpenAI Docs
 
-- `repo_url` (required)
-- `repo_owner` (optional)
-- `repo_name` (optional)
-- `github_token` (optional, recommended for private repos)
-- `github_login` (optional)
+- Multi-agent (Codex CLI): https://developers.openai.com/codex/multi-agent
+- MCP with Codex CLI: https://developers.openai.com/codex/mcp
+- AGENTS.md guide: https://developers.openai.com/codex/guides/agents-md
+- Config basics: https://developers.openai.com/codex/config-basic
+- Config advanced: https://developers.openai.com/codex/config-advanced
+- Config reference: https://developers.openai.com/codex/config-reference
+- Config sample: https://developers.openai.com/codex/config-sample
+- Agents SDK guide (background/reference): https://developers.openai.com/codex/guides/agents-sdk/
 
-## Notes
+## Mounted Codex Config
 
-- Bundled skills are copied into `/workspace/.codex/skills`.
-- The bootstrap flow renders `{{HARNESS_AGENT_NAME}}` in `config.yaml` during provisioning.
+- Source in image: `/app/codex/config.yaml` (from repo path `codex/config.yaml`)
+- Mounted target: `/workspace/.codex/config.yaml` (configured in `config.yaml` sandbox mounts)

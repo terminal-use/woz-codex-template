@@ -24,6 +24,7 @@ NOISY_RUNTIME_LOGGERS = (
 WORKSPACE_DIR = "/workspace"
 WORKSPACE_PATH = Path(WORKSPACE_DIR)
 WORKSPACE_GIT_PATH = WORKSPACE_PATH / ".git"
+CODEX_BAKED_CONFIG_YAML_PATH = Path("/app/codex/config.yaml")
 
 
 def _env_log_level(name: str, default: int) -> int:
@@ -98,14 +99,18 @@ def redact_secret(text: str, secret: str | None) -> str:
     return text.replace(secret, "***")
 
 
-def configure_git_identity(github_login: str | None) -> None:
-    """Set git user.name and user.email."""
+def configure_git_identity(
+    github_login: str | None,
+    git_author_email: str | None = None,
+) -> None:
+    """Set git user.name and user.email for repository commits."""
     name = github_login or "TerminalUse Agent"
-    email = (
+    default_email = (
         f"{github_login}@users.noreply.github.com"
         if github_login
         else "terminaluse-agent@users.noreply.github.com"
     )
+    email = git_author_email.strip() if git_author_email else default_email
     run_cmd(["git", "config", "user.name", name], cwd=WORKSPACE_DIR)
     run_cmd(["git", "config", "user.email", email], cwd=WORKSPACE_DIR)
 
@@ -138,3 +143,44 @@ async def wait_for_workspace_ready(
             return True
         await asyncio.sleep(max(0.05, poll_seconds))
     return workspace_ready()
+
+
+def load_codex_runtime_config(*, default_model: str) -> dict[str, str]:
+    """Load Codex runtime settings from mounted vanilla YAML config."""
+    config: dict[str, str] = {
+        "model": default_model,
+        "approval_policy": "never",
+        "sandbox_mode": "danger-full-access",
+    }
+
+    parsed = _parse_simple_yaml(CODEX_BAKED_CONFIG_YAML_PATH)
+    if parsed:
+        for key in ("model", "approval_policy", "sandbox_mode"):
+            value = parsed.get(key)
+            if value:
+                config[key] = value
+
+    return config
+
+
+def _parse_simple_yaml(path: Path) -> dict[str, str]:
+    """Parse a flat `key: value` YAML file for simple runtime settings."""
+    if not path.exists():
+        return {}
+
+    values: dict[str, str] = {}
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or ":" not in line:
+            continue
+        key, value = line.split(":", 1)
+        key = key.strip()
+        value = value.strip()
+        if not key or not value:
+            continue
+        if (value.startswith('"') and value.endswith('"')) or (
+            value.startswith("'") and value.endswith("'")
+        ):
+            value = value[1:-1].strip()
+        values[key] = value
+    return values
