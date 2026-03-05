@@ -36,7 +36,6 @@ from .helpers import (
 configure_runtime_logging()
 logger = make_logger(__name__)
 
-os.environ.setdefault("CODEX_HOME", "/app/codex")
 CODEX_EXEC_TIMEOUT_SECONDS = 1800
 
 server = AgentServer()
