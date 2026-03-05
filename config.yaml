@@ -43,3 +43,4 @@ sandbox:
   mounts:
     - source: codex
       target: /root/.codex
+      readonly: false
