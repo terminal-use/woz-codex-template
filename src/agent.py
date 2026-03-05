@@ -117,12 +117,14 @@ def _run_codex_cli(
 ) -> subprocess.CompletedProcess[str]:
     """Run Codex CLI in non-interactive mode, optionally resuming a thread."""
     model_args = ["-m", model] if model else []
+    sandbox_args = ["-s", "danger-full-access"]
     if thread_id:
         args = [
             "codex",
             "exec",
             "resume",
             "--json",
+            *sandbox_args,
             *model_args,
             thread_id,
             prompt,
@@ -132,6 +134,7 @@ def _run_codex_cli(
             "codex",
             "exec",
             "--json",
+            *sandbox_args,
             *model_args,
             prompt,
         ]
