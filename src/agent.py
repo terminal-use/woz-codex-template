@@ -37,8 +37,32 @@ configure_runtime_logging()
 logger = make_logger(__name__)
 
 CODEX_EXEC_TIMEOUT_SECONDS = 1800
+_codex_logged_in = False
 
 server = AgentServer()
+
+
+def _ensure_codex_login() -> None:
+    """Login codex CLI with OPENAI_API_KEY if not already logged in."""
+    global _codex_logged_in
+    if _codex_logged_in:
+        return
+    api_key = os.environ.get("OPENAI_API_KEY", "").strip()
+    if not api_key:
+        logger.warning("OPENAI_API_KEY not set, skipping codex login")
+        return
+    result = subprocess.run(
+        ["codex", "login", "--with-api-key"],
+        input=api_key,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    if result.returncode == 0:
+        _codex_logged_in = True
+        logger.info("codex_login_success")
+    else:
+        logger.warning("codex_login_failed stderr=%s", result.stderr)
 
 
 def _state_thread_id(state: Any) -> str | None:
@@ -231,6 +255,7 @@ async def handle_event(ctx: TaskContext, event: Event):
 
         model = os.getenv("CODEX_MODEL", "").strip() or None
         configure_git_identity(task_github_login, task_git_author_email)
+        _ensure_codex_login()
 
         result = _run_codex_cli(
             prompt=user_message,
