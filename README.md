@@ -16,6 +16,7 @@ Minimal template for a repo-cloning coding workspace that runs Codex via the Cod
 - Uses baked Codex config at `/app/codex/config.toml`.
 - Points Codex CLI to `/app/codex/config.toml` via `CODEX_HOME=/app/codex`.
 - Runs `codex exec` and `codex exec resume` (JSON mode) to preserve thread state across task events.
+- Includes `skills/using-slack-tools` and injects a Slack thread reply contract when Slack context is present.
 
 ## Runtime
 

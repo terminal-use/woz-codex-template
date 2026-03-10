@@ -9,6 +9,7 @@ description = "WOZ harness agent (Coding Workspace Codex template)"
 requires-python = ">=3.12"
 dependencies = [
   "terminaluse[observability]",
+  "slack_sdk",
 ]
 
 [tool.hatch.build.targets.wheel]

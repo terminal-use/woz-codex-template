@@ -43,6 +43,7 @@ RUN npm install -g @openai/codex
 # Copy the source code, config, and bundled skills
 COPY src /app/src
 COPY codex /app/codex
+COPY skills /app/skills
 
 # Set environment variables
 ENV PYTHONPATH=/app

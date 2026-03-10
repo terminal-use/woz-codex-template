@@ -22,13 +22,16 @@ from terminaluse.types import Event, TextPart
 
 from .helpers import (
     WORKSPACE_DIR,
+    build_slack_mode_prompt,
     build_authenticated_clone_url,
     configure_git_identity,
     configure_runtime_logging,
     git_env,
     redact_secret,
     run_cmd,
+    task_metadata_str,
     task_param_str,
+    task_slack_thread_context,
     wait_for_workspace_ready,
     workspace_ready,
 )
@@ -241,6 +244,10 @@ async def handle_event(ctx: TaskContext, event: Event):
         task_github_token = task_param_str(ctx, "github_token")
         task_github_login = task_param_str(ctx, "github_login")
         task_git_author_email = task_param_str(ctx, "git_author_email")
+        slack_bot_token = task_param_str(ctx, "slack_bot_token") or task_metadata_str(
+            ctx, "slack_bot_token"
+        )
+        slack_channel, slack_thread_ts = task_slack_thread_context(ctx)
         env = git_env()
         if task_github_token:
             env["GH_TOKEN"] = task_github_token
@@ -248,6 +255,12 @@ async def handle_event(ctx: TaskContext, event: Event):
         if task_git_author_email:
             env["GIT_AUTHOR_EMAIL"] = task_git_author_email
             env["GIT_COMMITTER_EMAIL"] = task_git_author_email
+        if slack_bot_token:
+            env["SLACK_BOT_TOKEN"] = slack_bot_token
+        if slack_channel:
+            env["WOZ_SLACK_CHANNEL"] = slack_channel
+        if slack_thread_ts:
+            env["WOZ_SLACK_THREAD_TS"] = slack_thread_ts
 
         if not workspace_ready_flag or not workspace_ready():
             ready = await wait_for_workspace_ready()
@@ -259,9 +272,14 @@ async def handle_event(ctx: TaskContext, event: Event):
         model = os.getenv("CODEX_MODEL", "").strip() or None
         configure_git_identity(task_github_login, task_git_author_email)
         _ensure_codex_login()
+        prompt_for_model = build_slack_mode_prompt(
+            user_message=user_message,
+            slack_channel=slack_channel,
+            slack_thread_ts=slack_thread_ts,
+        )
 
         result = _run_codex_cli(
-            prompt=user_message,
+            prompt=prompt_for_model,
             model=model,
             thread_id=prior_thread_id,
             env=env,
@@ -276,7 +294,7 @@ async def handle_event(ctx: TaskContext, event: Event):
             )
             await ctx.state.update({"thread_id": None})
             result = _run_codex_cli(
-                prompt=user_message,
+                prompt=prompt_for_model,
                 model=model,
                 thread_id=None,
                 env=env,

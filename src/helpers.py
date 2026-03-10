@@ -125,6 +125,75 @@ def task_param_str(ctx: TaskContext, key: str) -> str | None:
     return None
 
 
+def task_metadata_str(ctx: TaskContext, key: str) -> str | None:
+    """Extract a string value from task metadata."""
+    metadata = getattr(ctx.task, "task_metadata", None)
+    if not isinstance(metadata, dict):
+        return None
+    value = metadata.get(key)
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return None
+
+
+def task_slack_thread_context(ctx: TaskContext) -> tuple[str | None, str | None]:
+    """Resolve Slack channel + thread context from params/metadata."""
+    channel = task_param_str(ctx, "slack_channel") or task_metadata_str(
+        ctx, "slack_channel"
+    )
+    thread_ts = task_param_str(ctx, "slack_thread_ts") or task_metadata_str(
+        ctx, "slack_thread_ts"
+    )
+    if channel and thread_ts:
+        return (channel, thread_ts)
+
+    thread_key = task_param_str(ctx, "slack_thread_key") or task_metadata_str(
+        ctx, "slack_thread_key"
+    )
+    if not thread_key:
+        return (channel, thread_ts)
+
+    parts = thread_key.split(":")
+    if len(parts) < 3:
+        return (channel, thread_ts)
+
+    if not channel:
+        candidate = parts[1].strip()
+        if candidate:
+            channel = candidate
+    if not thread_ts:
+        candidate = ":".join(parts[2:]).strip()
+        if candidate:
+            thread_ts = candidate
+    return (channel, thread_ts)
+
+
+def build_slack_mode_prompt(
+    *,
+    user_message: str,
+    slack_channel: str | None,
+    slack_thread_ts: str | None,
+) -> str:
+    """Prepend a strict Slack thread response contract when context exists."""
+    if not slack_channel or not slack_thread_ts:
+        return user_message
+
+    return (
+        "[Slack thread response contract]\n"
+        "- This task originated from a Slack thread.\n"
+        f"- slack_channel: {slack_channel}\n"
+        f"- slack_thread_ts: {slack_thread_ts}\n"
+        "- REQUIRED: before ending this turn, post at least one user-visible reply in that Slack thread.\n"
+        "- REQUIRED: include a short summary of what you changed or checked.\n"
+        "- REQUIRED: if blocked/failing, post the exact blocker in that thread before ending.\n"
+        "- Use the using-slack-tools skill script at /app/skills/using-slack-tools/scripts/slack_tools.py.\n"
+        "- Do not rely only on Terminal Use output; the user reads Slack.\n"
+        "[/Slack thread response contract]\n\n"
+        "[User request]\n"
+        f"{user_message}"
+    )
+
+
 def workspace_ready() -> bool:
     """Check if workspace has a git repository."""
     return WORKSPACE_GIT_PATH.exists()
