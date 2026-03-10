@@ -31,6 +31,7 @@ from .helpers import (
     run_cmd,
     task_metadata_str,
     task_param_str,
+    task_slack_reply_identity,
     task_slack_thread_context,
     wait_for_workspace_ready,
     workspace_ready,
@@ -261,6 +262,23 @@ async def handle_event(ctx: TaskContext, event: Event):
             env["WOZ_SLACK_CHANNEL"] = slack_channel
         if slack_thread_ts:
             env["WOZ_SLACK_THREAD_TS"] = slack_thread_ts
+        (
+            slack_reply_username,
+            slack_reply_icon_emoji,
+            slack_reply_icon_url,
+        ) = task_slack_reply_identity(ctx)
+        if slack_reply_username:
+            env["WOZ_SLACK_REPLY_USERNAME"] = slack_reply_username
+        else:
+            env.pop("WOZ_SLACK_REPLY_USERNAME", None)
+        if slack_reply_icon_emoji:
+            env["WOZ_SLACK_REPLY_ICON_EMOJI"] = slack_reply_icon_emoji
+        else:
+            env.pop("WOZ_SLACK_REPLY_ICON_EMOJI", None)
+        if slack_reply_icon_url:
+            env["WOZ_SLACK_REPLY_ICON_URL"] = slack_reply_icon_url
+        else:
+            env.pop("WOZ_SLACK_REPLY_ICON_URL", None)
 
         if not workspace_ready_flag or not workspace_ready():
             ready = await wait_for_workspace_ready()
