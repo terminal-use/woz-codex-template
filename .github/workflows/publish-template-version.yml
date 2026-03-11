@@ -24,6 +24,7 @@ permissions:
 
 jobs:
   publish:
+    if: ${{ github.repository == 'terminal-use/woz-codex-template' }}
     runs-on: ubuntu-latest
     env:
       TAG_PREFIX: codex-v
