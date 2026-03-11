@@ -179,7 +179,9 @@ async def handle_create(ctx: TaskContext, params: dict[str, Any]):
         bool(github_token),
     )
 
-    await ctx.state.create(state={"workspace_ready": False, "thread_id": None})
+    await ctx.state.create(
+        state={"workspace_ready": False, "thread_id": None, "clone_error": None}
+    )
 
     if not repo_url:
         logger.error("missing_repo_url task_id=%s", ctx.task.id)
@@ -204,6 +206,7 @@ async def handle_create(ctx: TaskContext, params: dict[str, Any]):
             if not github_token and "could not read Username" in stderr:
                 stderr = "Repository may be private. Reconnect GitHub and retry."
             logger.warning("clone_failed task_id=%s reason=%s", ctx.task.id, stderr)
+            await ctx.state.update({"workspace_ready": False, "clone_error": stderr})
             return
 
         if used_embedded_token:
@@ -217,13 +220,21 @@ async def handle_create(ctx: TaskContext, params: dict[str, Any]):
             os.environ["GH_TOKEN"] = str(github_token)
             os.environ["GITHUB_TOKEN"] = str(github_token)
 
-        await ctx.state.update({"workspace_ready": True, "thread_id": None})
+        await ctx.state.update(
+            {"workspace_ready": True, "thread_id": None, "clone_error": None}
+        )
         await ctx.messages.send("Workspace is ready.")
 
     except subprocess.TimeoutExpired:
         logger.warning("clone_timeout task_id=%s", ctx.task.id)
+        await ctx.state.update(
+            {"workspace_ready": False, "clone_error": "Clone timed out."}
+        )
     except Exception as exc:
         logger.exception("clone_error task_id=%s error=%s", ctx.task.id, exc)
+        await ctx.state.update(
+            {"workspace_ready": False, "clone_error": f"Clone error: {str(exc)}"}
+        )
 
 
 @server.on_event
@@ -240,6 +251,11 @@ async def handle_event(ctx: TaskContext, event: Event):
         state = await ctx.state.get()
         prior_thread_id = _state_thread_id(state)
         workspace_ready_flag = bool(state.get("workspace_ready")) if isinstance(state, dict) else False
+        clone_error = (
+            str(state.get("clone_error")).strip()
+            if isinstance(state, dict) and state.get("clone_error")
+            else None
+        )
 
         task_github_token = task_param_str(ctx, "github_token")
         task_github_login = task_param_str(ctx, "github_login")
@@ -265,9 +281,16 @@ async def handle_event(ctx: TaskContext, event: Event):
         if not workspace_ready_flag or not workspace_ready():
             ready = await wait_for_workspace_ready()
             if not ready:
-                await ctx.messages.send("Workspace still initializing. Retry soon.")
-                return
-            await ctx.state.update({"workspace_ready": True})
+                warning_detail = (
+                    f"Previous clone issue: {clone_error}"
+                    if clone_error
+                    else "Workspace is still initializing."
+                )
+                await ctx.messages.send(
+                    f"Warning: {warning_detail} Continuing anyway; I may need to clone/setup in this turn."
+                )
+            else:
+                await ctx.state.update({"workspace_ready": True, "clone_error": None})
 
         model = os.getenv("CODEX_MODEL", "").strip() or None
         configure_git_identity(task_github_login, task_git_author_email)
